@@ -1,0 +1,28 @@
+# PostgreSQL para desenvolvimento local da Soparia da Lê.
+#   docker compose up -d      -> sobe o banco
+#   docker compose down       -> para o banco (dados ficam no volume)
+#   docker compose down -v    -> apaga tudo, inclusive os dados
+#
+# Cria dois bancos: soparia_da_le (desenvolvimento) e soparia_da_le_test (testes).
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: soparia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: soparia
+      POSTGRES_PASSWORD: soparia
+      POSTGRES_DB: soparia_da_le
+    ports:
+      - '5432:5432'
+    volumes:
+      - soparia_pgdata:/var/lib/postgresql/data
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/01-test-db.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U soparia -d soparia_da_le']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  soparia_pgdata:

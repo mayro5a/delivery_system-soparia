@@ -1,0 +1,24 @@
+# Dependências
+node_modules/
+
+# Builds
+dist/
+build/
+
+# Ambiente
+.env
+!.env.example
+
+# Banco de dados local (SQLite)
+*.db
+*.db-journal
+
+# Logs
+npm-debug.log*
+*.log
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

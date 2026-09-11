@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as productService from '../services/product.service';
+import { AppError } from '../utils/AppError';
 
 export async function listPublic(_req: Request, res: Response) {
   const products = await productService.listPublicProducts();
@@ -34,4 +35,13 @@ export async function remove(req: Request, res: Response) {
 export async function updateAvailability(req: Request, res: Response) {
   const product = await productService.updateAvailability(req.params.id, req.body.available);
   res.json({ success: true, data: product });
+}
+
+/** Recebe a foto enviada pelo admin (multipart/form-data, campo "image") e devolve a URL pública. */
+export async function uploadImage(req: Request, res: Response) {
+  if (!req.file) {
+    throw new AppError('Nenhuma imagem foi enviada.', 400);
+  }
+  const url = `${req.protocol}://${req.get('host')}/uploads/products/${req.file.filename}`;
+  res.status(201).json({ success: true, data: { url } });
 }

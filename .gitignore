@@ -13,6 +13,9 @@ build/
 *.db
 *.db-journal
 
+# Fotos de produtos enviadas pelo admin (armazenadas em disco, fora do git)
+backend/uploads/
+
 # Logs
 npm-debug.log*
 *.log

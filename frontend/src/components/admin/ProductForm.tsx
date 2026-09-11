@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ImagePlus, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { Category, Product } from '../../types';
-import { ProductFormInput, ProductFormVariant } from '../../services/admin';
+import { ProductFormInput, ProductFormVariant, uploadProductImage } from '../../services/admin';
+import { getApiErrorMessage } from '../../services/api';
 import { Button } from '../ui/Button';
 import { Switch } from '../ui/Switch';
 
@@ -22,6 +23,9 @@ export function ProductForm({
   const [description, setDescription] = useState(product?.description ?? '');
   const [price, setPrice] = useState(product?.price?.toString() ?? '');
   const [image, setImage] = useState(product?.image ?? '');
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [available, setAvailable] = useState(product?.available ?? true);
   const [categoryId, setCategoryId] = useState(product?.categoryId ?? categories[0]?.id ?? '');
   const [hasVariants, setHasVariants] = useState(product?.hasVariants ?? false);
@@ -29,6 +33,23 @@ export function ProductForm({
     product?.variants.map((v) => ({ id: v.id, name: v.name, price: v.price, available: v.available })) ?? [],
   );
   const [formError, setFormError] = useState<string | null>(null);
+
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite escolher o mesmo arquivo de novo depois
+    if (!file) return;
+
+    setImageError(null);
+    setImageUploading(true);
+    try {
+      const { url } = await uploadProductImage(file);
+      setImage(url);
+    } catch (err) {
+      setImageError(getApiErrorMessage(err));
+    } finally {
+      setImageUploading(false);
+    }
+  }
 
   function addVariant() {
     setVariants((prev) => [...prev, { name: '', price: Number(price) || 0, available: true }]);
@@ -127,16 +148,53 @@ export function ProductForm({
       </div>
 
       <div>
-        <label htmlFor="image" className="mb-1 block text-sm font-semibold text-broth-900">
-          URL da imagem <span className="font-normal text-broth-700">(opcional)</span>
+        <label className="mb-1 block text-sm font-semibold text-broth-900">
+          Foto do prato <span className="font-normal text-broth-700">(opcional)</span>
         </label>
         <input
-          id="image"
-          value={image ?? ''}
-          onChange={(e) => setImage(e.target.value)}
-          placeholder="https://..."
-          className="w-full rounded-xl border border-broth-800/20 px-3 py-2 focus:border-brand-500"
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          onChange={handleImageChange}
+          hidden
         />
+        <div className="flex items-center gap-3">
+          {image ? (
+            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-broth-800/20 bg-broth-800/5">
+              <img src={image} alt="Prévia da foto do produto" className="h-full w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => setImage('')}
+                aria-label="Remover foto"
+                className="absolute right-1 top-1 rounded-full bg-broth-900/70 p-0.5 text-white hover:bg-broth-900"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-dashed border-broth-800/25 bg-broth-800/5 text-broth-700/60">
+              <ImagePlus size={24} />
+            </div>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={imageUploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {imageUploading ? (
+              <>
+                <Loader2 size={14} className="animate-spin" /> Enviando...
+              </>
+            ) : image ? (
+              'Trocar foto'
+            ) : (
+              'Escolher da galeria'
+            )}
+          </Button>
+        </div>
+        {imageError && <p className="mt-1 text-sm text-red-600">{imageError}</p>}
       </div>
 
       <div className="flex items-center justify-between rounded-xl bg-broth-800/5 px-3 py-2">
@@ -195,7 +253,7 @@ export function ProductForm({
         <Button type="button" variant="outline" fullWidth onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" fullWidth isLoading={isSubmitting}>
+        <Button type="submit" fullWidth isLoading={isSubmitting} disabled={imageUploading}>
           Salvar
         </Button>
       </div>

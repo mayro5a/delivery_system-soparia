@@ -5,6 +5,7 @@ import * as orderController from '../controllers/order.controller';
 import { asyncHandler } from '../utils/asyncHandler';
 import { requireAuth } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
+import { uploadProductImage } from '../middlewares/upload.middleware';
 import { createProductSchema, updateAvailabilitySchema, updateProductSchema } from '../validations/product.schema';
 import { createCategorySchema, updateCategorySchema } from '../validations/category.schema';
 import { updateOrderStatusSchema } from '../validations/order.schema';
@@ -21,6 +22,7 @@ router.get('/orders/:id', asyncHandler(orderController.getOne));
 router.patch('/orders/:id/status', validate(updateOrderStatusSchema), asyncHandler(orderController.updateStatus));
 
 router.get('/products', asyncHandler(productController.listAdmin));
+router.post('/products/upload-image', uploadProductImage, asyncHandler(productController.uploadImage));
 router.post('/products', validate(createProductSchema), asyncHandler(productController.create));
 router.put('/products/:id', validate(updateProductSchema), asyncHandler(productController.update));
 router.delete('/products/:id', asyncHandler(productController.remove));

@@ -42,6 +42,14 @@ export async function fetchAdminProducts(): Promise<Product[]> {
   return data.data;
 }
 
+/** Envia a foto escolhida pelo admin (galeria/arquivos do dispositivo) e devolve a URL salva no servidor. */
+export async function uploadProductImage(file: File): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append('image', file);
+  const { data } = await api.post('/admin/products/upload-image', formData);
+  return data.data;
+}
+
 export async function createProduct(payload: ProductFormInput): Promise<Product> {
   const { data } = await api.post('/admin/products', payload);
   return data.data;

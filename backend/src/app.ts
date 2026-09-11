@@ -1,3 +1,4 @@
+import path from 'node:path';
 import cors from 'cors';
 import express from 'express';
 import { env } from './config/env';
@@ -14,6 +15,9 @@ app.use(
 app.use(express.json());
 
 app.get('/health', (_req, res) => res.json({ success: true, message: 'API da Soparia da Lê no ar.' }));
+
+// Fotos de produtos enviadas pelo admin (ver middlewares/upload.middleware.ts).
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.use('/api', routes);
 

@@ -10,7 +10,6 @@ import { AdminLogin } from './pages/admin/Login';
 import { AdminDashboard } from './pages/admin/Dashboard';
 import { AdminProducts } from './pages/admin/Products';
 import { AdminAvailability } from './pages/admin/Availability';
-import { AdminDeliveryRegions } from './pages/admin/DeliveryRegions';
 import { AdminOrders } from './pages/admin/Orders';
 import { AdminSettings } from './pages/admin/Settings';
 import { NotFound } from './pages/NotFound';
@@ -34,7 +33,6 @@ export default function App() {
               <Route path="orders" element={<AdminOrders />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="availability" element={<AdminAvailability />} />
-              <Route path="delivery-regions" element={<AdminDeliveryRegions />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
 

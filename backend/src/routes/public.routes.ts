@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import * as productController from '../controllers/product.controller';
 import * as categoryController from '../controllers/category.controller';
-import * as regionController from '../controllers/deliveryRegion.controller';
 import * as orderController from '../controllers/order.controller';
 import * as paymentController from '../controllers/payment.controller';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -14,7 +13,6 @@ const router = Router();
 // Cardápio público — sempre reflete o que está no banco.
 router.get('/products', asyncHandler(productController.listPublic));
 router.get('/categories', asyncHandler(categoryController.list));
-router.get('/delivery-regions', asyncHandler(regionController.listPublic));
 
 // Pedido — o backend recalcula todos os valores antes de gravar.
 router.post('/orders', validate(createOrderSchema), asyncHandler(orderController.create));

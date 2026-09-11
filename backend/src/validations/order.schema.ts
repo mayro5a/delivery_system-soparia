@@ -37,10 +37,6 @@ const createOrderBody = z.object({
     .trim()
     .length(2, 'Use a sigla do estado (ex.: AM).')
     .transform((s) => s.toUpperCase()),
-  // A taxa de entrega vem SEMPRE da região cadastrada pelo administrador.
-  deliveryRegionId: z
-    .string({ required_error: 'Selecione a região de entrega.' })
-    .min(1, 'Selecione a região de entrega.'),
 });
 
 export type CreateOrderBody = z.infer<typeof createOrderBody>;

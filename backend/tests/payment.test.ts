@@ -21,8 +21,10 @@ import {
 } from '../src/services/payment.service';
 import { getOrderById } from '../src/services/order.service';
 import { AppError } from '../src/utils/AppError';
+import { FIXED_DELIVERY_FEE } from '../src/config/constants';
 import { prisma } from '../src/lib/prisma';
 import { createPaidableOrder, resetDatabase } from './helpers';
+import { createPaymentBody } from '../src/validations/payment.schema';
 
 const mockedCreate = vi.mocked(mpCreatePayment);
 const mockedGet = vi.mocked(mpGetPayment);
@@ -101,7 +103,7 @@ describe('payment.service - criação de pagamento', () => {
   });
 
   it('cria um pagamento Pix cobrando o total calculado no servidor (não o do navegador)', async () => {
-    const { order } = await createPaidableOrder({ price: 20, fee: 5, quantity: 2 });
+    const { order } = await createPaidableOrder({ price: 20, quantity: 2 });
     mockedCreate.mockResolvedValueOnce(
       mpResponse({
         point_of_interaction: {
@@ -112,10 +114,11 @@ describe('payment.service - criação de pagamento', () => {
     );
 
     const payment = await createPayment(pixInput(order.id, order.accessToken));
+    const expectedTotal = 40 + FIXED_DELIVERY_FEE;
 
     expect(mockedCreate).toHaveBeenCalledTimes(1);
     const [body, idempotencyKey] = mockedCreate.mock.calls[0];
-    expect(body.transaction_amount).toBe(45);
+    expect(body.transaction_amount).toBe(expectedTotal);
     expect(body.external_reference).toBe(String(order.id));
     expect(body.payment_method_id).toBe('pix');
     expect(body.date_of_expiration).toBeTruthy();
@@ -123,7 +126,7 @@ describe('payment.service - criação de pagamento', () => {
 
     expect(payment.method).toBe('PIX');
     expect(payment.status).toBe('PENDING');
-    expect(payment.amount).toBe(45);
+    expect(payment.amount).toBe(expectedTotal);
     expect(payment.pix?.qrCode).toBe('000201pix-copia-e-cola');
     expect(payment.pix?.qrCodeBase64).toBe('QkFTRTY0');
 
@@ -131,6 +134,18 @@ describe('payment.service - criação de pagamento', () => {
     expect(refreshed.paymentMethod).toBe('PIX');
     expect(refreshed.paymentStatus).toBe('PENDING');
     expect(refreshed.orderStatus).toBe('AGUARDANDO_PAGAMENTO');
+  });
+
+  it('aceita o snake_case que o Brick envia em tempo de execução (credit_card / debit_card)', async () => {
+    // A tipagem do SDK diz "creditCard", mas o Brick real manda "credit_card".
+    const { order } = await createPaidableOrder();
+
+    const parsed = createPaymentBody.safeParse({ ...cardInput(order.id, order.accessToken), selectedPaymentMethod: 'credit_card' });
+    expect(parsed.success).toBe(true);
+
+    mockedCreate.mockResolvedValueOnce(mpResponse({ status: 'approved', payment_type_id: 'debit_card' }));
+    const payment = await createPayment({ ...cardInput(order.id, order.accessToken), selectedPaymentMethod: 'debit_card' });
+    expect(payment.method).toBe('CARTAO_DEBITO');
   });
 
   it('cartão aprovado marca o pedido como PAGO', async () => {

@@ -1,22 +1,20 @@
 import { useEffect, useState } from 'react';
-import { fetchCategories, fetchDeliveryRegions, fetchProducts } from '../services/catalog';
+import { fetchCategories, fetchProducts } from '../services/catalog';
 import { getApiErrorMessage } from '../services/api';
-import { Category, DeliveryRegion, Product } from '../types';
+import { Category, Product } from '../types';
 
 interface CatalogState {
   products: Product[];
   categories: Category[];
-  deliveryRegions: DeliveryRegion[];
   isLoading: boolean;
   error: string | null;
   reload: () => void;
 }
 
-/** Busca cardápio + categorias + regiões de entrega direto do banco (nada de mock). */
+/** Busca cardápio + categorias direto do banco (nada de mock). */
 export function useCatalog(): CatalogState {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [deliveryRegions, setDeliveryRegions] = useState<DeliveryRegion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
@@ -26,12 +24,11 @@ export function useCatalog(): CatalogState {
     setIsLoading(true);
     setError(null);
 
-    Promise.all([fetchProducts(), fetchCategories(), fetchDeliveryRegions()])
-      .then(([productsData, categoriesData, regionsData]) => {
+    Promise.all([fetchProducts(), fetchCategories()])
+      .then(([productsData, categoriesData]) => {
         if (!active) return;
         setProducts(productsData);
         setCategories(categoriesData);
-        setDeliveryRegions(regionsData);
       })
       .catch((err) => {
         if (!active) return;
@@ -46,5 +43,5 @@ export function useCatalog(): CatalogState {
     };
   }, [reloadToken]);
 
-  return { products, categories, deliveryRegions, isLoading, error, reload: () => setReloadToken((t) => t + 1) };
+  return { products, categories, isLoading, error, reload: () => setReloadToken((t) => t + 1) };
 }

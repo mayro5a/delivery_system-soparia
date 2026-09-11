@@ -8,76 +8,65 @@ import {
 } from '../src/services/order.service';
 import { createOrderSchema } from '../src/validations/order.schema';
 import { AppError } from '../src/utils/AppError';
+import { FIXED_DELIVERY_FEE } from '../src/config/constants';
 import { prisma } from '../src/lib/prisma';
-import {
-  baseOrderInput,
-  createPaidableOrder,
-  createTestCategory,
-  createTestProduct,
-  createTestRegion,
-  resetDatabase,
-} from './helpers';
+import { baseOrderInput, createPaidableOrder, createTestCategory, createTestProduct, resetDatabase } from './helpers';
 
 describe('order.service - criação do pedido', () => {
   beforeEach(async () => {
     await resetDatabase();
   });
 
-  it('calcula subtotal, taxa de entrega e total a partir do banco', async () => {
-    const { order } = await createPaidableOrder({ price: 20, fee: 5, quantity: 2 });
+  it('calcula subtotal, taxa de entrega fixa e total a partir do banco', async () => {
+    const { order } = await createPaidableOrder({ price: 20, quantity: 2 });
 
     expect(order.subtotal).toBe(40);
-    expect(order.deliveryFee).toBe(5);
-    expect(order.total).toBe(45);
+    expect(order.deliveryFee).toBe(FIXED_DELIVERY_FEE);
+    expect(order.total).toBe(40 + FIXED_DELIVERY_FEE);
     expect(order.items[0].observation).toBe('Sem cheiro-verde');
     expect(order.paymentStatus).toBe('PENDING');
     expect(order.orderStatus).toBe('AGUARDANDO_PAGAMENTO');
     expect(order.accessToken).toBeTruthy();
   });
 
-  it('calcula a taxa de entrega de acordo com a região escolhida', async () => {
+  it('aplica a taxa de entrega fixa independentemente do bairro digitado', async () => {
     const category = await createTestCategory();
     const soup = await createTestProduct(category.id, { price: 20 });
-    const cheap = await createTestRegion({ name: 'Centro', fee: 5 });
-    const far = await createTestRegion({ name: 'Cidade Nova', fee: 12 });
 
     const orderA = await createOrder(
-      baseOrderInput({ items: [{ productId: soup.id, quantity: 1 }], deliveryRegionId: cheap.id }),
+      baseOrderInput({ items: [{ productId: soup.id, quantity: 1 }], neighborhood: 'Centro' }),
     );
     const orderB = await createOrder(
-      baseOrderInput({ items: [{ productId: soup.id, quantity: 1 }], deliveryRegionId: far.id }),
+      baseOrderInput({ items: [{ productId: soup.id, quantity: 1 }], neighborhood: 'Bairro qualquer que não está cadastrado em lugar nenhum' }),
     );
 
-    expect(orderA.deliveryFee).toBe(5);
-    expect(orderA.total).toBe(25);
-    expect(orderB.deliveryFee).toBe(12);
-    expect(orderB.total).toBe(32);
+    expect(orderA.deliveryFee).toBe(FIXED_DELIVERY_FEE);
+    expect(orderA.total).toBe(20 + FIXED_DELIVERY_FEE);
+    expect(orderB.deliveryFee).toBe(FIXED_DELIVERY_FEE);
+    expect(orderB.total).toBe(20 + FIXED_DELIVERY_FEE);
   });
 
   it('ignora o preço enviado pelo frontend e usa o preço do banco', async () => {
     const category = await createTestCategory();
     const soup = await createTestProduct(category.id, { price: 20 });
-    const region = await createTestRegion();
 
     const order = await createOrder(
       baseOrderInput({
         // @ts-expect-error - simula um frontend malicioso tentando enviar um preço próprio
         items: [{ productId: soup.id, quantity: 1, unitPrice: 1, subtotal: 1 }],
-        deliveryRegionId: region.id,
       }),
     );
 
     expect(order.subtotal).toBe(20);
-    expect(order.total).toBe(25);
+    expect(order.total).toBe(20 + FIXED_DELIVERY_FEE);
   });
 
   it('rejeita pedido com produto esgotado', async () => {
     const category = await createTestCategory();
     const soup = await createTestProduct(category.id, { name: 'Canja', available: false });
-    const region = await createTestRegion();
 
     await expect(
-      createOrder(baseOrderInput({ items: [{ productId: soup.id, quantity: 1 }], deliveryRegionId: region.id })),
+      createOrder(baseOrderInput({ items: [{ productId: soup.id, quantity: 1 }] })),
     ).rejects.toThrow(/esgotado/i);
   });
 
@@ -87,39 +76,22 @@ describe('order.service - criação do pedido', () => {
     const guarana = await prisma.productVariant.create({
       data: { name: 'Guaraná', price: 6, available: false, productId: soda.id },
     });
-    const region = await createTestRegion();
 
     await expect(
-      createOrder(baseOrderInput({ items: [{ productId: soda.id, quantity: 1 }], deliveryRegionId: region.id })),
+      createOrder(baseOrderInput({ items: [{ productId: soda.id, quantity: 1 }] })),
     ).rejects.toThrow(AppError);
 
     await expect(
       createOrder(
         baseOrderInput({
           items: [{ productId: soda.id, variantId: guarana.id, quantity: 1 }],
-          deliveryRegionId: region.id,
         }),
       ),
     ).rejects.toThrow(/esgotado/i);
   });
 
-  it('rejeita região de entrega inválida ou inativa', async () => {
-    const category = await createTestCategory();
-    const soup = await createTestProduct(category.id);
-    const inactive = await createTestRegion({ name: 'Longe', fee: 30, available: false });
-
-    await expect(
-      createOrder(baseOrderInput({ items: [{ productId: soup.id, quantity: 1 }], deliveryRegionId: inactive.id })),
-    ).rejects.toThrow(/região/i);
-
-    await expect(
-      createOrder(baseOrderInput({ items: [{ productId: soup.id, quantity: 1 }], deliveryRegionId: 'nao-existe' })),
-    ).rejects.toThrow(/região/i);
-  });
-
   it('não permite pedido sem produtos', async () => {
-    const region = await createTestRegion();
-    await expect(createOrder(baseOrderInput({ items: [], deliveryRegionId: region.id }))).rejects.toThrow(AppError);
+    await expect(createOrder(baseOrderInput({ items: [] }))).rejects.toThrow(AppError);
   });
 
   it('valida os campos obrigatórios do endereço (Zod)', () => {
@@ -134,7 +106,6 @@ describe('order.service - criação do pedido', () => {
         neighborhood: '',
         city: '',
         state: 'Amazonas',
-        deliveryRegionId: '',
       },
     });
     expect(result.success).toBe(false);
@@ -150,7 +121,6 @@ describe('order.service - criação do pedido', () => {
           'body.neighborhood',
           'body.city',
           'body.state',
-          'body.deliveryRegionId',
         ]),
       );
     }

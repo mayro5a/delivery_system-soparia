@@ -46,6 +46,9 @@ function methodFromProviderType(paymentTypeId?: string | null): PaymentMethod {
   }
 }
 
+/** Tipos de cartão que tratamos como débito (o Brick pode enviar camelCase ou snake_case). */
+const DEBIT_BRICK_TYPES: ReadonlySet<string> = new Set(['debitCard', 'debit_card', 'prepaidCard', 'prepaid_card']);
+
 /** Determina o meio de pagamento escolhido no Brick e valida os dados mínimos. */
 function resolveMethod(input: CreatePaymentBody): PaymentMethod {
   const { selectedPaymentMethod, formData } = input;
@@ -60,7 +63,7 @@ function resolveMethod(input: CreatePaymentBody): PaymentMethod {
   if (!formData.token) {
     throw new AppError('Dados do cartão inválidos. Preencha novamente o formulário de pagamento.', 400);
   }
-  return selectedPaymentMethod === 'debitCard' ? 'CARTAO_DEBITO' : 'CARTAO_CREDITO';
+  return DEBIT_BRICK_TYPES.has(selectedPaymentMethod) ? 'CARTAO_DEBITO' : 'CARTAO_CREDITO';
 }
 
 /** Formato de data exigido pelo MP: 2024-01-31T20:15:00.000-04:00 */

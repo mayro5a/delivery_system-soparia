@@ -26,13 +26,6 @@ export interface Product {
   variants: ProductVariant[];
 }
 
-export interface DeliveryRegion {
-  id: string;
-  name: string;
-  fee: number;
-  available: boolean;
-}
-
 // ---- Pagamento ----
 
 export type PaymentMethod = 'PIX' | 'CARTAO_CREDITO' | 'CARTAO_DEBITO';
@@ -137,8 +130,6 @@ export interface Order {
   reference: string | null;
   city: string;
   state: string;
-  deliveryRegionId: string;
-  deliveryRegion: DeliveryRegion | null;
   paymentMethod: PaymentMethod | null;
   subtotal: number;
   deliveryFee: number;

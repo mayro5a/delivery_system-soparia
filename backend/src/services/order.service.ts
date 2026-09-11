@@ -4,10 +4,10 @@ import { AppError } from '../utils/AppError';
 import { buildWhatsAppMessage, buildWhatsAppUrl } from '../utils/whatsappMessage';
 import { canAdminTransition, statusRequiresPayment } from '../utils/orderStatus';
 import { CreateOrderBody } from '../validations/order.schema';
+import { FIXED_DELIVERY_FEE } from '../config/constants';
 
 export const orderInclude = {
   items: true,
-  deliveryRegion: true,
   payments: { orderBy: { createdAt: 'desc' as const } },
 } satisfies Prisma.OrderInclude;
 
@@ -88,7 +88,7 @@ async function resolveItems(items: CreateOrderBody['items']): Promise<ResolvedIt
 
 /**
  * Cria o pedido com status AGUARDANDO_PAGAMENTO. O valor total é calculado
- * aqui (subtotal dos itens + taxa da região cadastrada) e é esse valor que será
+ * aqui (subtotal dos itens + taxa de entrega fixa) e é esse valor que será
  * cobrado no Mercado Pago.
  */
 export async function createOrder(input: CreateOrderBody) {
@@ -103,12 +103,8 @@ export async function createOrder(input: CreateOrderBody) {
     throw new AppError('O valor do pedido precisa ser maior que zero.', 400);
   }
 
-  const region = await prisma.deliveryRegion.findUnique({ where: { id: input.deliveryRegionId } });
-  if (!region || !region.available) {
-    throw new AppError('Região de entrega inválida ou indisponível. Selecione outra região.', 400);
-  }
-
-  const deliveryFee = money(region.fee);
+  // A taxa de entrega é fixa para toda a cidade, sem restrição de bairro.
+  const deliveryFee = money(FIXED_DELIVERY_FEE);
   const total = money(subtotal + deliveryFee);
 
   const order = await prisma.order.create({
@@ -123,7 +119,6 @@ export async function createOrder(input: CreateOrderBody) {
       reference: input.reference?.trim() || null,
       city: input.city.trim(),
       state: input.state.trim().toUpperCase(),
-      deliveryRegionId: region.id,
       subtotal,
       deliveryFee,
       total,

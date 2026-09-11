@@ -37,7 +37,7 @@ um painel Kanban e gerencia cardápio, preços, disponibilidade e taxas de entre
 ```
 CLIENTE
   escolhe produtos → adiciona observações → carrinho → informa endereço
-  → sistema calcula a taxa pela região → pedido criado (AGUARDANDO_PAGAMENTO)
+  → sistema soma a taxa de entrega fixa → pedido criado (AGUARDANDO_PAGAMENTO)
   → escolhe Pix ou cartão (Payment Brick do Mercado Pago)
   → Mercado Pago processa → BACKEND confirma o status junto ao Mercado Pago
   → pedido marcado como PAGO → tela de confirmação
@@ -86,15 +86,16 @@ soparia-da-le/
 │
 ├── backend/
 │   ├── prisma/
-│   │   ├── schema.prisma        # User, Category, Product, ProductVariant, DeliveryRegion,
+│   │   ├── schema.prisma        # User, Category, Product, ProductVariant,
 │   │   │                        # Order, OrderItem, Payment (+ enums)
 │   │   ├── migrations/
 │   │   └── seed.ts
 │   ├── src/
 │   │   ├── config/env.ts        # variáveis de ambiente (MP_ACCESS_TOKEN só aqui)
+│   │   ├── config/constants.ts  # taxa de entrega fixa (FIXED_DELIVERY_FEE)
 │   │   ├── lib/mercadopago.ts   # único ponto de contato com o Mercado Pago
 │   │   ├── lib/prisma.ts
-│   │   ├── controllers/         # auth, product, category, deliveryRegion, order, payment
+│   │   ├── controllers/         # auth, product, category, order, payment
 │   │   ├── services/            # regras de negócio (order.service, payment.service, ...)
 │   │   ├── routes/              # public.routes, admin.routes, auth.routes
 │   │   ├── middlewares/         # auth (JWT), validate (Zod), error handler
@@ -204,7 +205,6 @@ O seed é idempotente e cria:
 - Categorias: **Sopas**, **Outros**, **Refrigerantes**
 - Produtos: Sopa de Carne, Canja, Sopa de Mocotó (R$ 20,00), Lasanha (R$ 15,00),
   Salada de Frutas 300ml (R$ 10,00) e Refrigerante Lata 350ml (R$ 6,00) com 4 sabores
-- Regiões de entrega de exemplo (bairros de Manaus) com suas taxas
 - O **usuário administrador** definido em `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME`
 
 **Como criar/alterar o administrador:** defina `ADMIN_EMAIL` e `ADMIN_PASSWORD` no `backend/.env` e
@@ -304,9 +304,9 @@ npm test
 Os testes rodam contra o banco `TEST_DATABASE_URL` (o schema é aplicado automaticamente com
 `prisma db push`) e simulam o Mercado Pago (`vi.mock` de `src/lib/mercadopago`). Cobrem:
 
-- cálculo do subtotal, da taxa de entrega por região e do total (preço vem do banco, nunca do
+- cálculo do subtotal, da taxa de entrega fixa e do total (preço vem do banco, nunca do
   frontend);
-- produto/variação esgotados e região inválida não geram pedido;
+- produto/variação esgotados não geram pedido;
 - validação do pedido (Zod) e do endereço completo;
 - token de acesso do pedido (cliente só vê o próprio pedido);
 - criação de pagamento Pix e cartão (aprovado, recusado, pendente), idempotência, reaproveitamento
@@ -327,7 +327,6 @@ POST   /api/auth/login
 
 GET    /api/products
 GET    /api/categories
-GET    /api/delivery-regions
 
 POST   /api/orders                         cria o pedido (AGUARDANDO_PAGAMENTO) + accessToken
 GET    /api/orders/:id?token=...           acompanhamento pelo cliente (sincroniza pagamento pendente)
@@ -351,10 +350,6 @@ GET    /api/admin/categories
 POST   /api/admin/categories
 PUT    /api/admin/categories/:id
 DELETE /api/admin/categories/:id
-GET    /api/admin/delivery-regions
-POST   /api/admin/delivery-regions
-PUT    /api/admin/delivery-regions/:id
-DELETE /api/admin/delivery-regions/:id
 ```
 
 ## 16. Segurança
@@ -383,6 +378,7 @@ Acesse `/admin/login` com as credenciais do seed.
   produtos com sabores (refrigerantes) têm variações com preço e disponibilidade próprios.
 - **Disponibilidade** — alterna cada produto entre *Disponível* e *Esgotado*; o cliente vê o selo
   **ESGOTADO** e não consegue adicionar ao carrinho.
-- **Taxas de entrega** — cadastra regiões/bairros e suas taxas; o checkout calcula a taxa
-  automaticamente.
 - **Dashboard** — pedidos do dia por etapa e faturamento (apenas pagamentos confirmados).
+
+A taxa de entrega é fixa (R$ 2,00, ver `backend/src/config/constants.ts`) para toda a cidade — o
+cliente digita o bairro livremente no checkout, sem lista de regiões cadastradas.

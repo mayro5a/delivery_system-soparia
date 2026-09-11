@@ -343,7 +343,7 @@ function OrderSummary({ order, defaultOpen }: { order: CustomerOrder; defaultOpe
               <span>{formatCurrency(order.subtotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Entrega{order.deliveryRegion ? ` (${order.deliveryRegion.name})` : ''}</span>
+              <span>Entrega</span>
               <span>{formatCurrency(order.deliveryFee)}</span>
             </div>
             <div className="flex justify-between font-display text-base font-bold text-broth-900">

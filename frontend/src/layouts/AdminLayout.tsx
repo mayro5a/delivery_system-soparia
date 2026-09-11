@@ -9,7 +9,6 @@ import {
   Settings,
   Soup,
   ToggleLeft,
-  Truck,
   X,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,7 +19,6 @@ const navItems = [
   { to: '/admin/orders', label: 'Pedidos', icon: ClipboardList },
   { to: '/admin/products', label: 'Cardápio', icon: Package },
   { to: '/admin/availability', label: 'Disponibilidade', icon: ToggleLeft },
-  { to: '/admin/delivery-regions', label: 'Taxas de entrega', icon: Truck },
   { to: '/admin/settings', label: 'Configurações', icon: Settings },
 ];
 

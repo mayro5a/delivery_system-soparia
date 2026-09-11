@@ -1,5 +1,5 @@
 import { api } from './api';
-import { AdminOrder, Category, DashboardSummary, DeliveryRegion, OrderStatus, Product } from '../types';
+import { AdminOrder, Category, DashboardSummary, OrderStatus, Product } from '../types';
 
 // ---- Dashboard ----
 export async function fetchDashboardSummary(): Promise<DashboardSummary> {
@@ -65,31 +65,4 @@ export async function updateProductAvailability(id: string, available: boolean):
 export async function createCategory(payload: { name: string; description?: string | null }): Promise<Category> {
   const { data } = await api.post('/admin/categories', payload);
   return data.data;
-}
-
-// ---- Regiões de entrega ----
-export async function fetchAdminDeliveryRegions(): Promise<DeliveryRegion[]> {
-  const { data } = await api.get('/admin/delivery-regions');
-  return data.data;
-}
-
-export async function createDeliveryRegion(payload: {
-  name: string;
-  fee: number;
-  available: boolean;
-}): Promise<DeliveryRegion> {
-  const { data } = await api.post('/admin/delivery-regions', payload);
-  return data.data;
-}
-
-export async function updateDeliveryRegion(
-  id: string,
-  payload: Partial<{ name: string; fee: number; available: boolean }>,
-): Promise<DeliveryRegion> {
-  const { data } = await api.put(`/admin/delivery-regions/${id}`, payload);
-  return data.data;
-}
-
-export async function deleteDeliveryRegion(id: string): Promise<void> {
-  await api.delete(`/admin/delivery-regions/${id}`);
 }

@@ -105,25 +105,6 @@ async function main() {
     }
   }
 
-  // ---- Regiões de entrega (bairros de Manaus, ajuste pelo painel) ----
-  const regions = [
-    { name: 'Centro', fee: 5.0 },
-    { name: 'Adrianópolis', fee: 6.0 },
-    { name: 'Aleixo', fee: 6.0 },
-    { name: 'Parque 10 de Novembro', fee: 7.0 },
-    { name: 'Flores', fee: 8.0 },
-    { name: 'Cidade Nova', fee: 10.0 },
-    { name: 'Cachoeirinha', fee: 8.0 },
-    { name: 'Coroado', fee: 9.0 },
-  ];
-  for (const region of regions) {
-    await prisma.deliveryRegion.upsert({
-      where: { name: region.name },
-      update: {},
-      create: { name: region.name, fee: region.fee, available: true },
-    });
-  }
-
   // ---- Usuário administrador (credenciais SEMPRE via variáveis de ambiente) ----
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;

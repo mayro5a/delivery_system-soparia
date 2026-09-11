@@ -6,8 +6,21 @@ export async function fetchPaymentConfig(): Promise<PaymentConfig> {
   return data.data;
 }
 
-/** Tipos mínimos do que o Payment Brick devolve no onSubmit. */
-export type BrickPaymentType = 'bank_transfer' | 'creditCard' | 'debitCard';
+/**
+ * Tipos mínimos do que o Payment Brick devolve no onSubmit.
+ *
+ * A tipagem do SDK declara camelCase (`creditCard`), mas o Brick carregado do
+ * CDN envia snake_case (`credit_card`) em tempo de execução — o backend aceita
+ * as duas grafias, então repassamos o valor como veio.
+ */
+export type BrickPaymentType =
+  | 'bank_transfer'
+  | 'creditCard'
+  | 'credit_card'
+  | 'debitCard'
+  | 'debit_card'
+  | 'prepaidCard'
+  | 'prepaid_card';
 
 export interface BrickFormData {
   token?: string;

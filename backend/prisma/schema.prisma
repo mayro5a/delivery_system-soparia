@@ -100,18 +100,6 @@ model ProductVariant {
   @@map("product_variants")
 }
 
-model DeliveryRegion {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  fee       Float
-  available Boolean  @default(true)
-  orders    Order[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("delivery_regions")
-}
-
 model Order {
   id            Int    @id @default(autoincrement())
   /// Token secreto que permite ao cliente (sem login) acompanhar o próprio pedido.
@@ -128,9 +116,6 @@ model Order {
   reference     String?
   city          String
   state         String
-
-  deliveryRegionId String
-  deliveryRegion   DeliveryRegion @relation(fields: [deliveryRegionId], references: [id])
 
   /// Definido quando o cliente escolhe o meio de pagamento (Pix ou cartão).
   paymentMethod PaymentMethod?

@@ -10,7 +10,6 @@ export async function resetDatabase() {
   await prisma.productVariant.deleteMany();
   await prisma.product.deleteMany();
   await prisma.category.deleteMany();
-  await prisma.deliveryRegion.deleteMany();
   await prisma.user.deleteMany();
 }
 
@@ -33,16 +32,6 @@ export async function createTestProduct(
   });
 }
 
-export async function createTestRegion(overrides: Partial<{ name: string; fee: number; available: boolean }> = {}) {
-  return prisma.deliveryRegion.create({
-    data: {
-      name: overrides.name ?? 'Centro',
-      fee: overrides.fee ?? 5,
-      available: overrides.available ?? true,
-    },
-  });
-}
-
 /** Endereço válido padrão para os testes de pedido. */
 export function baseOrderInput(overrides: Partial<CreateOrderBody> = {}): CreateOrderBody {
   return {
@@ -57,21 +46,18 @@ export function baseOrderInput(overrides: Partial<CreateOrderBody> = {}): Create
     reference: 'Próximo à praça',
     city: 'Manaus',
     state: 'AM',
-    deliveryRegionId: '',
     ...overrides,
   };
 }
 
-/** Cria categoria + produto + região e um pedido pronto para ser pago. */
-export async function createPaidableOrder(opts: { price?: number; fee?: number; quantity?: number } = {}) {
+/** Cria categoria + produto e um pedido pronto para ser pago. */
+export async function createPaidableOrder(opts: { price?: number; quantity?: number } = {}) {
   const category = await createTestCategory();
   const product = await createTestProduct(category.id, { price: opts.price ?? 20 });
-  const region = await createTestRegion({ fee: opts.fee ?? 5 });
   const order = await createOrder(
     baseOrderInput({
       items: [{ productId: product.id, quantity: opts.quantity ?? 2, observation: 'Sem cheiro-verde' }],
-      deliveryRegionId: region.id,
     }),
   );
-  return { category, product, region, order };
+  return { category, product, order };
 }

@@ -18,7 +18,6 @@ export interface CreateOrderPayload {
   reference?: string | null;
   city: string;
   state: string;
-  deliveryRegionId: string;
 }
 
 export async function createOrder(payload: CreateOrderPayload): Promise<CreateOrderResponse> {

@@ -32,6 +32,25 @@ const formDataSchema = z
   })
   .passthrough();
 
+/**
+ * Meios de pagamento que o Payment Brick pode informar em `selectedPaymentMethod`.
+ *
+ * A tipagem do @mercadopago/sdk-react declara camelCase (`creditCard`), mas o
+ * Brick carregado do CDN envia snake_case (`credit_card`) em tempo de execução.
+ * Aceitamos as duas grafias; a normalização fica em payment.service.
+ */
+export const BRICK_PAYMENT_TYPES = [
+  'bank_transfer',
+  'creditCard',
+  'credit_card',
+  'debitCard',
+  'debit_card',
+  'prepaidCard',
+  'prepaid_card',
+] as const;
+
+export type BrickPaymentType = (typeof BRICK_PAYMENT_TYPES)[number];
+
 export const createPaymentBody = z.object({
   orderId: z.number({ required_error: 'Pedido inválido.' }).int().positive(),
   orderToken: z.string({ required_error: 'Token do pedido ausente.' }).min(1),
@@ -40,7 +59,7 @@ export const createPaymentBody = z.object({
     .string({ required_error: 'Chave de idempotência ausente.' })
     .min(16, 'Chave de idempotência inválida.')
     .max(80, 'Chave de idempotência inválida.'),
-  selectedPaymentMethod: z.enum(['bank_transfer', 'creditCard', 'debitCard'], {
+  selectedPaymentMethod: z.enum(BRICK_PAYMENT_TYPES, {
     required_error: 'Selecione Pix ou cartão.',
     invalid_type_error: 'Meio de pagamento não suportado.',
   }),

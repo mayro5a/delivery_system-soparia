@@ -1,4 +1,4 @@
-import { ArrowRight, Ban, Clock3, MapPin, Phone } from 'lucide-react';
+import { ArrowRight, Ban, Clock3, Mail, MapPin, Phone } from 'lucide-react';
 import {
   AdminOrder,
   OrderStatus,
@@ -69,6 +69,9 @@ export function OrderCard({
           className="flex items-center gap-1 text-xs text-broth-700 hover:text-basil-600"
         >
           <Phone size={12} /> {order.customerPhone}
+        </a>
+        <a href={`mailto:${order.customerEmail}`} className="flex items-center gap-1 text-xs text-broth-700 hover:text-basil-600">
+          <Mail size={12} /> {order.customerEmail}
         </a>
       </div>
 

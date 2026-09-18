@@ -2,9 +2,11 @@ import { OrderStatus, PaymentStatus, PaymentMethod, Prisma } from '@prisma/clien
 import { prisma } from '../lib/prisma';
 import { AppError } from '../utils/AppError';
 import { buildWhatsAppMessage, buildWhatsAppUrl } from '../utils/whatsappMessage';
+import { buildOrderConfirmedEmail, buildOrderOutForDeliveryEmail, OrderForEmail } from '../utils/orderEmail';
 import { canAdminTransition, statusRequiresPayment } from '../utils/orderStatus';
 import { CreateOrderBody } from '../validations/order.schema';
 import { FIXED_DELIVERY_FEE } from '../config/constants';
+import { sendEmail } from '../lib/email';
 
 export const orderInclude = {
   items: true,
@@ -111,6 +113,7 @@ export async function createOrder(input: CreateOrderBody) {
     data: {
       customerName: input.customerName.trim(),
       customerPhone: input.customerPhone.trim(),
+      customerEmail: input.customerEmail.trim().toLowerCase(),
       cep: input.cep.replace(/\D/g, '').replace(/^(\d{5})(\d{3})$/, '$1-$2'),
       street: input.street.trim(),
       addressNumber: input.addressNumber.trim(),
@@ -150,6 +153,34 @@ export function parseOrderId(id: string | number): number {
     throw new AppError('Pedido não encontrado.', 404);
   }
   return parsed;
+}
+
+/** Monta os dados usados nos e-mails transacionais (confirmação e saiu para entrega). */
+function buildOrderForEmail(order: OrderWithRelations): OrderForEmail {
+  return {
+    id: order.id,
+    accessToken: order.accessToken,
+    customerName: order.customerName,
+    customerEmail: order.customerEmail,
+    items: order.items,
+    subtotal: order.subtotal,
+    deliveryFee: order.deliveryFee,
+    total: order.total,
+    street: order.street,
+    addressNumber: order.addressNumber,
+    neighborhood: order.neighborhood,
+    complement: order.complement,
+    city: order.city,
+    state: order.state,
+  };
+}
+
+/** Dispara um e-mail transacional sem bloquear nem derrubar o fluxo do pedido. */
+function sendOrderEmail(order: OrderForEmail, build: (order: OrderForEmail) => { subject: string; html: string; text: string }) {
+  const { subject, html, text } = build(order);
+  void sendEmail({ to: order.customerEmail, subject, html, text }).catch((err) => {
+    console.error('[email] notificação automática falhou', err);
+  });
 }
 
 /** Visão pública do pedido (para o próprio cliente, autenticado pelo accessToken). */
@@ -239,6 +270,10 @@ export async function applyPaymentResultToOrder(
   }
 
   const data: Prisma.OrderUpdateInput = { paymentMethod: method };
+  // Só notifica no instante em que o pedido VIRA pago — nunca em reconsultas
+  // seguintes (webhook + poll do navegador podem confirmar o mesmo pagamento
+  // mais de uma vez).
+  const isFirstApproval = paymentStatus === 'APPROVED' && order.paymentStatus !== 'APPROVED';
 
   switch (paymentStatus) {
     case 'APPROVED':
@@ -264,7 +299,13 @@ export async function applyPaymentResultToOrder(
       break;
   }
 
-  return tx.order.update({ where: { id: orderId }, data, include: orderInclude });
+  const updated = await tx.order.update({ where: { id: orderId }, data, include: orderInclude });
+
+  if (isFirstApproval) {
+    sendOrderEmail(buildOrderForEmail(updated), buildOrderConfirmedEmail);
+  }
+
+  return updated;
 }
 
 // ---------------------------------------------------------------------------
@@ -311,11 +352,17 @@ export async function updateOrderStatus(id: string | number, status: OrderStatus
     throw new AppError('O pedido só pode ir para preparo depois que o pagamento for confirmado.', 400);
   }
 
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: orderId },
     data: { orderStatus: status },
     include: orderInclude,
   });
+
+  if (status === 'SAIU_PARA_ENTREGA') {
+    sendOrderEmail(buildOrderForEmail(updated), buildOrderOutForDeliveryEmail);
+  }
+
+  return updated;
 }
 
 export async function getDashboardSummary() {

@@ -5,6 +5,7 @@ export const deliveryFormSchema = z.object({
   customerPhone: z
     .string()
     .refine((v) => v.replace(/\D/g, '').length >= 10, 'Informe um telefone válido com DDD.'),
+  customerEmail: z.string().trim().email('Informe um e-mail válido.'),
   cep: z.string().refine((v) => v.replace(/\D/g, '').length === 8, 'Informe um CEP válido.'),
   street: z.string().trim().min(2, 'Informe a rua.').max(160),
   addressNumber: z.string().trim().min(1, 'Informe o número.').max(20),

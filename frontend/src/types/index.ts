@@ -122,6 +122,7 @@ export interface Order {
   id: number;
   customerName: string;
   customerPhone: string;
+  customerEmail: string;
   cep: string;
   street: string;
   addressNumber: string;

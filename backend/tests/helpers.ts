@@ -38,6 +38,7 @@ export function baseOrderInput(overrides: Partial<CreateOrderBody> = {}): Create
     items: [],
     customerName: 'João da Silva',
     customerPhone: '(92) 99999-9999',
+    customerEmail: 'joao@teste.com',
     cep: '69010-000',
     street: 'Rua Exemplo',
     addressNumber: '123',

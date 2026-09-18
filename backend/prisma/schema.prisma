@@ -106,6 +106,8 @@ model Order {
   accessToken   String @unique @default(uuid())
   customerName  String
   customerPhone String
+  /// Usado para enviar os e-mails de confirmação e de saída para entrega.
+  customerEmail String
 
   // Endereço de entrega
   cep           String

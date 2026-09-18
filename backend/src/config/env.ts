@@ -27,6 +27,22 @@ export const env = {
     password: process.env.ADMIN_PASSWORD ?? 'soparia123',
   },
   whatsappNumber: process.env.WHATSAPP_NUMBER ?? '5592992781331',
+  /**
+   * E-mail transacional (confirmação de pagamento e "saiu para entrega"), via
+   * SMTP genérico — funciona com qualquer provedor (Gmail, Brevo, SendGrid,
+   * Mailtrap para testes, etc.). Se SMTP_HOST ou SMTP_USER estiverem vazios, o
+   * envio fica desligado (sem quebrar nada) e só é registrado um aviso no log.
+   */
+  smtp: {
+    host: process.env.SMTP_HOST ?? '',
+    port: Number(process.env.SMTP_PORT ?? 587),
+    /** true para porta 465 (SSL direto); false (com STARTTLS) para 587/25. */
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER ?? '',
+    password: process.env.SMTP_PASSWORD ?? '',
+    /** Remetente exibido nos e-mails (ex.: "Soparia da Lê <pedidos@sopariadale.com>"). */
+    from: process.env.EMAIL_FROM ?? 'Soparia da Lê <pedidos@sopariadale.com>',
+  },
   mercadoPago: {
     /** SOMENTE no backend. Nunca é enviado ao navegador. */
     accessToken: process.env.MP_ACCESS_TOKEN ?? '',

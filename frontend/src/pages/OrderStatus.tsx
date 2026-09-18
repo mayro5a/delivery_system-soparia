@@ -9,9 +9,11 @@ import {
   ExternalLink,
   MessageCircle,
   RefreshCw,
+  Soup,
+  Truck,
   XCircle,
 } from 'lucide-react';
-import { CustomerOrder, PAYMENT_METHOD_LABELS, Payment } from '../types';
+import { CustomerOrder, OrderStatus as OrderStatusValue, PAYMENT_METHOD_LABELS, Payment } from '../types';
 import { fetchCustomerOrder, getRememberedOrderToken } from '../services/orders';
 import { getApiErrorMessage } from '../services/api';
 import { formatCurrency } from '../utils/currency';
@@ -71,13 +73,15 @@ export function OrderStatus() {
   const isCancelled = order?.orderStatus === 'CANCELADO';
   const isWaiting = !isPaid && !isCancelled && latest?.status === 'PENDING';
   const needsPayment = !isPaid && !isCancelled && !isWaiting;
+  const isFinished = order?.orderStatus === 'CONCLUIDO' || isCancelled;
 
-  // Enquanto houver pagamento pendente, consulta o backend (que confirma com o Mercado Pago).
+  // Enquanto houver pagamento pendente OU o pedido ainda estiver em andamento
+  // (preparo/entrega), consulta o backend para refletir mudanças feitas pelo admin.
   useEffect(() => {
-    if (!isWaiting) return;
+    if (!isWaiting && !(isPaid && !isFinished)) return;
     const timer = setInterval(() => load(true), POLL_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [isWaiting, load]);
+  }, [isWaiting, isPaid, isFinished, load]);
 
   if (!id || !token) {
     return (
@@ -179,10 +183,54 @@ function PaidPanel({ order }: { order: CustomerOrder }) {
         </a>
       )}
       <p className="text-xs text-broth-700/70">A mensagem já vai pronta com os itens, o endereço e a confirmação do pagamento.</p>
+
+      {order.orderStatus !== 'CANCELADO' && <OrderProgress status={order.orderStatus} />}
+
       <Link to="/" className="mt-1 text-sm font-semibold text-brand-600 hover:underline">
         Voltar ao cardápio
       </Link>
     </section>
+  );
+}
+
+/** Passos do pedido depois de pago, na visão do cliente (mais simples que o Kanban do admin). */
+const PROGRESS_STEPS: { statuses: OrderStatusValue[]; label: string; icon: typeof CheckCircle2 }[] = [
+  { statuses: ['PAGO'], label: 'Pedido confirmado', icon: CheckCircle2 },
+  { statuses: ['AGUARDANDO_PREPARO', 'EM_PREPARO'], label: 'Em preparo', icon: Soup },
+  { statuses: ['SAIU_PARA_ENTREGA'], label: 'Saiu para entrega', icon: Truck },
+  { statuses: ['CONCLUIDO'], label: 'Entregue', icon: CheckCircle2 },
+];
+
+function OrderProgress({ status }: { status: OrderStatusValue }) {
+  const currentIndex = PROGRESS_STEPS.findIndex((step) => step.statuses.includes(status));
+
+  return (
+    <div className="mt-2 w-full text-left">
+      <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wider text-broth-700/70">
+        Acompanhe seu pedido
+      </p>
+      <ol className="flex flex-col gap-3">
+        {PROGRESS_STEPS.map((step, index) => {
+          const isDone = index < currentIndex;
+          const isCurrent = index === currentIndex;
+          const Icon = step.icon;
+          return (
+            <li key={step.label} className="flex items-center gap-3">
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                  isDone || isCurrent ? 'bg-basil-500 text-white' : 'bg-broth-800/10 text-broth-700/50'
+                }`}
+              >
+                <Icon size={16} />
+              </span>
+              <span className={`text-sm ${isCurrent ? 'font-bold text-broth-900' : isDone ? 'text-broth-800' : 'text-broth-700/50'}`}>
+                {step.label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 

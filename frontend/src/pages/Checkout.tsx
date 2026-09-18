@@ -38,6 +38,7 @@ export function Checkout() {
         })),
         customerName: values.customerName,
         customerPhone: values.customerPhone,
+        customerEmail: values.customerEmail,
         cep: values.cep,
         street: values.street,
         addressNumber: values.addressNumber,

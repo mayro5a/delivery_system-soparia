@@ -22,6 +22,11 @@ const createOrderBody = z.object({
     .trim()
     .min(10, 'Informe um telefone válido com DDD.')
     .max(20),
+  customerEmail: z
+    .string({ required_error: 'Informe seu e-mail.' })
+    .trim()
+    .email('Informe um e-mail válido.')
+    .max(160),
   cep: z
     .string({ required_error: 'Informe o CEP.' })
     .trim()

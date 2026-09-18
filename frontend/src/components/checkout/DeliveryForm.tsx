@@ -66,6 +66,7 @@ export function DeliveryForm({
     defaultValues: {
       customerName: '',
       customerPhone: '',
+      customerEmail: '',
       cep: '',
       street: '',
       addressNumber: '',
@@ -137,6 +138,18 @@ export function DeliveryForm({
               />
             )}
           />
+        </Field>
+        <Field label="E-mail" htmlFor="customerEmail" error={errors.customerEmail?.message}>
+          <input
+            id="customerEmail"
+            type="email"
+            {...register('customerEmail')}
+            autoComplete="email"
+            inputMode="email"
+            className={inputClass}
+            placeholder="voce@email.com"
+          />
+          <p className="mt-1 text-xs text-broth-700/80">Enviaremos a confirmação do pedido e o aviso de saída para entrega por aqui.</p>
         </Field>
       </section>
 

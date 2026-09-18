@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   applyPaymentResultToOrder,
   createOrder,
@@ -11,6 +11,15 @@ import { AppError } from '../src/utils/AppError';
 import { FIXED_DELIVERY_FEE } from '../src/config/constants';
 import { prisma } from '../src/lib/prisma';
 import { baseOrderInput, createPaidableOrder, createTestCategory, createTestProduct, resetDatabase } from './helpers';
+import { sendEmail } from '../src/lib/email';
+
+// O envio de e-mail é testado isoladamente (email.test.ts); aqui só
+// verificamos QUANDO ele é disparado, não a chamada real ao provedor SMTP.
+vi.mock('../src/lib/email', () => ({
+  sendEmail: vi.fn().mockResolvedValue(undefined),
+}));
+
+const mockedSendEmail = vi.mocked(sendEmail);
 
 describe('order.service - criação do pedido', () => {
   beforeEach(async () => {
@@ -149,6 +158,7 @@ describe('order.service - criação do pedido', () => {
 describe('order.service - status do pedido', () => {
   beforeEach(async () => {
     await resetDatabase();
+    mockedSendEmail.mockClear();
   });
 
   it('marca o pedido como PAGO quando o pagamento é aprovado', async () => {
@@ -164,6 +174,47 @@ describe('order.service - status do pedido', () => {
     const publicView = toPublicOrder(updated);
     expect(publicView.whatsappUrl).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
     expect(publicView.whatsappMessage).toContain('Pagamento já confirmado pelo sistema.');
+  });
+
+  it('envia o e-mail de confirmação só na primeira aprovação do pagamento', async () => {
+    const { order } = await createPaidableOrder();
+
+    await applyPaymentResultToOrder(order.id, 'APPROVED', 'PIX');
+    expect(mockedSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockedSendEmail.mock.calls[0][0]).toMatchObject({
+      to: order.customerEmail,
+      subject: expect.stringContaining('confirmado'),
+    });
+
+    // Uma segunda confirmação do MESMO pagamento (webhook + poll do navegador,
+    // por exemplo) não deve gerar um segundo e-mail.
+    await applyPaymentResultToOrder(order.id, 'APPROVED', 'PIX');
+    expect(mockedSendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('não envia e-mail de confirmação quando o pagamento não é aprovado', async () => {
+    const { order } = await createPaidableOrder();
+
+    await applyPaymentResultToOrder(order.id, 'REJECTED', 'PIX');
+    await applyPaymentResultToOrder(order.id, 'PENDING', 'PIX');
+
+    expect(mockedSendEmail).not.toHaveBeenCalled();
+  });
+
+  it('envia o e-mail de "saiu para entrega" quando o pedido muda para essa etapa', async () => {
+    const { order } = await createPaidableOrder();
+    await applyPaymentResultToOrder(order.id, 'APPROVED', 'PIX');
+    mockedSendEmail.mockClear();
+
+    await updateOrderStatus(order.id, 'EM_PREPARO');
+    expect(mockedSendEmail).not.toHaveBeenCalled();
+
+    await updateOrderStatus(order.id, 'SAIU_PARA_ENTREGA');
+    expect(mockedSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockedSendEmail.mock.calls[0][0]).toMatchObject({
+      to: order.customerEmail,
+      subject: expect.stringContaining('saiu para entrega'),
+    });
   });
 
   it('uma tentativa recusada não "despaga" um pedido já aprovado', async () => {

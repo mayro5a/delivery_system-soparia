@@ -2,8 +2,11 @@
 
 Sistema web completo para a **Soparia da Lê**: o cliente monta o pedido pelo celular, informa o
 endereço, **paga com Pix ou cartão pelo próprio site (Mercado Pago)** e, com o pagamento confirmado
-pelo backend, envia o pedido estruturado para o WhatsApp da loja. O administrador acompanha tudo em
-um painel Kanban e gerencia cardápio, preços, disponibilidade e taxas de entrega.
+pelo backend, envia o pedido estruturado para o WhatsApp da loja e recebe um **e-mail de
+confirmação** — com um segundo e-mail quando o pedido sai para entrega. O cliente também pode
+acompanhar o andamento do pedido (preparo → saiu para entrega → entregue) na própria página do
+pedido. O administrador acompanha tudo em um painel Kanban e gerencia cardápio, preços,
+disponibilidade e taxas de entrega.
 
 > WhatsApp da Soparia: **(92) 99278-1331** (`5592992781331` nos links `wa.me`).
 > O WhatsApp é o canal de **confirmação/comunicação** do pedido — **não** é o meio de pagamento.
@@ -29,6 +32,7 @@ um painel Kanban e gerencia cardápio, preços, disponibilidade e taxas de entre
 15. [Rotas da API](#15-rotas-da-api)
 16. [Segurança](#16-segurança)
 17. [Painel administrativo](#17-painel-administrativo)
+18. [E-mail transacional](#18-e-mail-transacional)
 
 ---
 
@@ -40,11 +44,12 @@ CLIENTE
   → sistema soma a taxa de entrega fixa → pedido criado (AGUARDANDO_PAGAMENTO)
   → escolhe Pix ou cartão (Payment Brick do Mercado Pago)
   → Mercado Pago processa → BACKEND confirma o status junto ao Mercado Pago
-  → pedido marcado como PAGO → tela de confirmação
+  → pedido marcado como PAGO → tela de confirmação + e-mail de confirmação automático
   → botão "Enviar pedido no WhatsApp" (mensagem pronta com itens, endereço e "pagamento confirmado")
+  → cliente acompanha o andamento na própria página do pedido (/pedido/:id)
 
 ADMINISTRADOR
-  login → painel Kanban → vê o pedido PAGO → Em preparo → Saiu para entrega → Concluído
+  login → painel Kanban → vê o pedido PAGO → Em preparo → Saiu para entrega (e-mail automático) → Concluído
 ```
 
 Regras centrais:
@@ -152,6 +157,8 @@ cp frontend/.env.example frontend/.env
 | `JWT_EXPIRES_IN` | Validade do token (padrão `8h`) |
 | `ADMIN_NAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Administrador criado pelo seed |
 | `WHATSAPP_NUMBER` | Número da loja no formato internacional (`5592992781331`) |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `SMTP_USER` / `SMTP_PASSWORD` | Credenciais SMTP para o e-mail transacional — ver seção 18 |
+| `EMAIL_FROM` | Remetente exibido nos e-mails (padrão `Soparia da Lê <pedidos@sopariadale.com>`) |
 | `MP_ACCESS_TOKEN` | **Access Token** do Mercado Pago — **somente no backend** |
 | `MP_PUBLIC_KEY` | Public Key do Mercado Pago (entregue ao navegador via `GET /api/payments/config`) |
 | `MP_WEBHOOK_SECRET` | Assinatura secreta do webhook (valida o header `x-signature`) |
@@ -230,7 +237,9 @@ npm run dev         # http://localhost:5173
 Build de produção: `npm run build` (gera `frontend/dist`).
 
 Páginas do cliente: `/` (cardápio), `/checkout` (carrinho → entrega) e `/pedido/:id?token=...`
-(pagamento, acompanhamento do Pix, confirmação e WhatsApp). Painel: `/admin`.
+(pagamento, acompanhamento do Pix, confirmação, WhatsApp e — depois de pago — o andamento do pedido:
+*Pedido confirmado → Em preparo → Saiu para entrega → Entregue*, atualizado automaticamente). Painel:
+`/admin`.
 
 ## 11. Configuração do Mercado Pago
 
@@ -316,7 +325,10 @@ Os testes rodam contra o banco `TEST_DATABASE_URL` (o schema é aplicado automat
 - transições de status do pedido (não prepara sem pagamento, admin não marca PAGO manualmente,
   fluxo completo até CONCLUIDO, cancelamento);
 - autenticação administrativa; disponibilidade e preço refletindo no cardápio público;
-- mensagem do WhatsApp.
+- mensagem do WhatsApp;
+- e-mail transacional: conteúdo (assunto, itens, link de acompanhamento) e o envio via SMTP
+  (`vi.mock` de `nodemailer`); dispara o e-mail de confirmação só na primeira aprovação do
+  pagamento (não repete em reconsultas) e o de "saiu para entrega" só nessa transição de status.
 
 ## 15. Rotas da API
 
@@ -364,6 +376,8 @@ DELETE /api/admin/categories/:id
 - `MP_ACCESS_TOKEN` existe apenas no backend; o navegador só recebe a Public Key.
 - Webhook com verificação de assinatura e reconsulta ao provedor.
 - Segredos só em variáveis de ambiente (`.env` fora do git).
+- O e-mail transacional nunca derruba o fluxo do pedido: qualquer falha (SMTP ausente, provedor fora
+  do ar) só é registrada em log — o pedido segue confirmado/atualizado normalmente.
 
 ## 17. Painel administrativo
 
@@ -371,9 +385,11 @@ Acesse `/admin/login` com as credenciais do seed.
 
 - **Pedidos** — Kanban com as colunas *Aguardando pagamento*, *Pagos / Aguardando preparo*,
   *Em preparo*, *Saiu para entrega*, *Concluídos* e *Cancelados*. Cada card mostra número, horário,
-  cliente, telefone, itens com quantidades e observações, subtotal, entrega, total, forma e status do
-  pagamento e endereço completo. O painel atualiza sozinho a cada 15 s. Pedidos pagos entram
-  automaticamente na coluna de preparo (o admin não marca "pago" à mão).
+  cliente, telefone, e-mail, itens com quantidades e observações, subtotal, entrega, total, forma e
+  status do pagamento e endereço completo. O painel atualiza sozinho a cada 15 s. Pedidos pagos
+  entram automaticamente na coluna de preparo (o admin não marca "pago" à mão) — é aí que o e-mail de
+  confirmação já foi enviado ao cliente. Quando o admin move um pedido para *Saiu para entrega*, o
+  cliente recebe automaticamente o segundo e-mail.
 - **Cardápio** — criar/editar/excluir produtos, alterar nome, descrição, preço, imagem e categoria;
   produtos com sabores (refrigerantes) têm variações com preço e disponibilidade próprios.
 - **Disponibilidade** — alterna cada produto entre *Disponível* e *Esgotado*; o cliente vê o selo
@@ -382,3 +398,42 @@ Acesse `/admin/login` com as credenciais do seed.
 
 A taxa de entrega é fixa (R$ 2,00, ver `backend/src/config/constants.ts`) para toda a cidade — o
 cliente digita o bairro livremente no checkout, sem lista de regiões cadastradas.
+
+## 18. E-mail transacional
+
+O cliente informa o e-mail no checkout (junto com nome e telefone) e recebe automaticamente:
+
+1. **Pedido confirmado** — assim que o pagamento é aprovado (mesmo instante em que o WhatsApp da
+   loja recebe a notificação e o pedido some da coluna "Aguardando pagamento" no painel).
+2. **Saiu para entrega** — quando o admin move o pedido para essa coluna no Kanban.
+
+Os dois e-mails trazem um link para `/pedido/:id?token=...`, onde o cliente também acompanha o
+andamento em tempo real (a página atualiza sozinha a cada 4s enquanto o pedido não é concluído).
+
+Funciona com **qualquer provedor SMTP** (via [Nodemailer](https://nodemailer.com)) — não há
+aprovação nem custo por envio como na API do WhatsApp Business. Enquanto `SMTP_HOST` / `SMTP_USER` /
+`SMTP_PASSWORD` não estiverem preenchidos, o envio fica **desligado** (só um aviso no log) e nada
+mais é afetado.
+
+### Configuração rápida
+
+Qualquer provedor SMTP funciona. Algumas opções gratuitas para começar:
+
+- **Gmail** (rápido para testar): ative a verificação em duas etapas na conta e gere uma
+  ["senha de app"](https://myaccount.google.com/apppasswords). Use:
+  ```
+  SMTP_HOST="smtp.gmail.com"
+  SMTP_PORT=587
+  SMTP_SECURE=false
+  SMTP_USER="seuemail@gmail.com"
+  SMTP_PASSWORD="a senha de app gerada (16 caracteres)"
+  ```
+- **Brevo, Resend, Amazon SES, etc.** — qualquer provedor transacional tem uma tela de "credenciais
+  SMTP"; copie host/porta/usuário/senha de lá. Recomendado para produção (Gmail tem limite baixo de
+  envios por dia e pode marcar como spam).
+- **Ethereal** (só para testar sem mandar e-mail de verdade): gere uma conta temporária rodando
+  `npx tsx -e "import('nodemailer').then(m=>m.default.createTestAccount().then(console.log))"` dentro
+  de `backend/` — ele devolve host/usuário/senha e cada e-mail "enviado" vira um link de preview.
+
+Depois de preencher o `.env`, reinicie o backend. No próximo pagamento aprovado (ou pedido movido
+para "Saiu para entrega"), o e-mail chega sozinho.

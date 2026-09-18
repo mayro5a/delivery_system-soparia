@@ -10,6 +10,7 @@ export interface CreateOrderPayload {
   }[];
   customerName: string;
   customerPhone: string;
+  customerEmail: string;
   cep: string;
   street: string;
   addressNumber: string;

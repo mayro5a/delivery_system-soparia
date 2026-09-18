@@ -170,7 +170,7 @@ export function PaymentStep({
         {config && (
           <div className={brickReady ? 'p-2 sm:p-3' : 'h-0 overflow-hidden'}>
             <PaymentBrick
-              initialization={{ amount: order.total }}
+              initialization={{ amount: order.total, payer: { email: order.customerEmail } }}
               customization={{
                 paymentMethods: {
                   bankTransfer: 'all',

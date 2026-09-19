@@ -80,10 +80,14 @@ React Hook Form + Zod, Lucide Icons, Axios, `@mercadopago/sdk-react` (Payment Br
 
 **Banco de dados** — PostgreSQL (com `docker-compose.yml` pronto para desenvolvimento).
 
+**Orquestração de dev** — `concurrently` na raiz do projeto sobe backend + frontend com um único
+`npm run dev`.
+
 ## 3. Estrutura do projeto
 
 ```text
 soparia-da-le/
+├── package.json                 # npm run dev (sobe backend + frontend juntos via concurrently)
 ├── docker-compose.yml           # PostgreSQL local (dev + banco de testes)
 ├── docker/init-test-db.sql
 ├── .env.example                 # referência de TODAS as variáveis
@@ -128,14 +132,11 @@ soparia-da-le/
 Pré-requisitos: **Node.js 18+**, **npm** e **Docker** (ou um PostgreSQL já instalado).
 
 ```bash
-# Backend
-cd backend
-npm install
-
-# Frontend (em outro terminal)
-cd frontend
-npm install
+# Na raiz do projeto: instala backend + frontend de uma vez
+npm run install:all
 ```
+
+(equivalente a rodar `npm install` dentro de `backend/` e de `frontend/` separadamente)
 
 ## 5. Variáveis de ambiente
 
@@ -220,21 +221,32 @@ variáveis não existirem, o administrador não é criado (e em produção o see
 
 ## 9. Executando o backend
 
+Na raiz do projeto, `npm run dev` sobe **backend e frontend juntos**, cada um com seu log prefixado
+(`[backend]` / `[frontend]`) no mesmo terminal:
+
 ```bash
-cd backend
-npm run dev         # http://localhost:3333  (health check: GET /health)
+npm run dev
 ```
 
-Build de produção: `npm run build` e `npm start`.
+Se preferir rodar só o backend (terminal próprio, log mais limpo para depurar a API):
+
+```bash
+npm run dev:backend     # ou: cd backend && npm run dev
+# http://localhost:3333  (health check: GET /health)
+```
+
+Build de produção: `cd backend && npm run build && npm start`.
 
 ## 10. Executando o frontend
 
+Já sobe junto com `npm run dev` na raiz (seção anterior). Para rodar só o frontend:
+
 ```bash
-cd frontend
-npm run dev         # http://localhost:5173
+npm run dev:frontend     # ou: cd frontend && npm run dev
+# http://localhost:5173
 ```
 
-Build de produção: `npm run build` (gera `frontend/dist`).
+Build de produção: `cd frontend && npm run build` (gera `frontend/dist`).
 
 Páginas do cliente: `/` (cardápio), `/checkout` (carrinho → entrega) e `/pedido/:id?token=...`
 (pagamento, acompanhamento do Pix, confirmação, WhatsApp e — depois de pago — o andamento do pedido:
